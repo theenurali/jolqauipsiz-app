@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jol Qauipsiz</title>
+<!-- Jol Qauipsiz Mini App: training, marathon, topics and the 40-question exam. Data comes from the
+     bot's Supabase function (/telegram-bot/app), signed with Telegram's initData. -->
+<script src="https://telegram.org/js/telegram-web-app.js?59"></script>
+<style>
+:root{--bg:var(--tg-theme-bg-color,#fff);--text:var(--tg-theme-text-color,#111);--hint:var(--tg-theme-hint-color,#8a8f98);
+--accent:var(--tg-theme-button-color,#2ea6ff);--accent-text:var(--tg-theme-button-text-color,#fff);
+--card:var(--tg-theme-secondary-bg-color,#f2f3f5);--ok:#2fb35a;--bad:#e5484d;--warn:#f5a524}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{max-width:560px;margin:0 auto;padding:16px 16px 96px}
+h1{font-size:22px;margin:4px 0 2px}h2{font-size:18px;margin:16px 0 10px}
+.hint{color:var(--hint);font-size:14px}
+.card{background:var(--card);border-radius:18px;padding:16px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:12px}
+.grow{flex:1;min-width:0}
+.ring{width:84px;height:84px;flex:none}
+.ring text{font-weight:700;font-size:22px;fill:var(--text)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.chip{background:var(--bg);border-radius:12px;padding:6px 10px;font-size:13px}
+.hero{background:var(--accent);color:var(--accent-text);border-radius:20px;padding:18px;margin-bottom:12px;cursor:pointer}
+.hero b{font-size:19px;display:block}.hero span{opacity:.85;font-size:14px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{background:var(--card);border-radius:18px;padding:14px;cursor:pointer;min-height:104px;display:flex;flex-direction:column;justify-content:space-between}
+.tile .ic{font-size:28px}.tile b{display:block}.tile span{color:var(--hint);font-size:13px}
+.tile:active,.hero:active,.opt:active,.item:active{transform:scale(.98)}
+.item{background:var(--card);border-radius:14px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
+.bar{height:6px;border-radius:3px;background:var(--bg);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:14px}
+.top .bar{flex:1;margin:0;background:var(--card)}
+.media{width:100%;border-radius:16px;background:#000;display:block;aspect-ratio:16/9;object-fit:cover;margin-bottom:12px}
+.question{font-weight:700;font-size:18px;margin:0 0 12px}
+.opt{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:0;border-radius:14px;padding:12px 14px;margin:0 0 8px;
+background:var(--card);color:var(--text);font:inherit;cursor:pointer;transition:background .15s}
+.opt .l{flex:none;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;
+background:var(--accent);color:var(--accent-text)}
+.opt.ok{background:var(--ok);color:#fff}.opt.bad{background:var(--bad);color:#fff}
+.opt.sel{outline:3px solid var(--accent)}
+.opt.ok .l,.opt.bad .l{background:#fff;color:#333}
+.verdict{font-weight:700;font-size:18px;margin:6px 0 8px}.verdict.ok{color:var(--ok)}.verdict.bad{color:var(--bad)}
+.expl{background:var(--card);border-radius:14px;padding:12px 14px;margin-top:8px}
+.expl small{display:block;color:var(--hint);margin-top:8px;font-style:italic}
+.note{color:var(--warn);font-size:14px;margin-top:8px}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:14px;font:600 16px system-ui,sans-serif;cursor:pointer;
+background:var(--accent);color:var(--accent-text);margin-top:10px}
+.btn.alt{background:var(--card);color:var(--text)}
+.dock{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:var(--bg)}
+.dock .btn{max-width:528px;margin:0 auto}
+.dots{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-bottom:12px}
+.dot{aspect-ratio:1;border-radius:7px;background:var(--card);font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.dot.a{background:var(--accent);color:var(--accent-text)}.dot.cur{outline:2px solid var(--text)}
+.timer{font-variant-numeric:tabular-nums;font-weight:700}.timer.low{color:var(--bad)}
+.nav{display:flex;gap:10px}.nav .btn{flex:1;width:auto;margin-top:4px}.btn:disabled{opacity:.4}
+.center{text-align:center}.big{font-size:44px;font-weight:800}
+.msg{padding:40px 10px;text-align:center;color:var(--hint)}
+</style>
+</head>
+<body>
+<div id="app"><div class="msg">…</div></div>
+<script>
+"use strict";
+const API = "https://xmbfhgayewkraonookud.supabase.co/functions/v1/telegram-bot/app";
+const tg = window.Telegram && window.Telegram.WebApp;
+const DEMO = !(tg && tg.initData) && location.search.includes("demo");
+const $ = (s) => document.querySelector(s);
+const app = $("#app");
+
+const T = {
+  ru: {
+    ready: "Готовность к экзамену", noReady: "Ответьте на 20 вопросов", streak: "🔥 {n} дн. подряд", solved: "📚 {n} из {t}",
+    mistakesChip: "❌ {n} ошибок", examsChip: "🏁 сдано {n} из {t}",
+    exam: "🏁 Пробный экзамен", examSub: "40 вопросов · 40 минут · порог 32", examCont: "▶️ Продолжить экзамен",
+    practice: "Тренировка", practiceSub: "20 случайных вопросов", marathon: "Марафон", marathonSub: "вопрос {n} из {t}",
+    topics: "По темам", topicsSub: "{n} тем", mist: "Ошибки", mistSub: "{n} вопросов", noMist: "Ошибок пока нет 🎉",
+    next: "Дальше", finish: "Завершить", right: "✅ Верно!", wrong: "❌ Неверно", expl: "💡 Пояснение",
+    once: "Ответьте верно ещё раз — и вопрос уйдёт из ошибок.", done: "Серия завершена", again: "🔁 Ещё раз", home: "🏠 На главную",
+    great: "Отлично! Вы готовы к экзамену 🎉", good: "Хорошо! Ещё немного практики 💪", retry: "Ошибки сохранены — повторите их 📚",
+    answered: "Отвечено {n} из {t}", finishQ: "Завершить экзамен? Без ответа: {n} — засчитаются как ошибки.",
+    passed: "🎉 Сдано!", failed: "😔 Не сдано", score: "Правильно {n} из {t} · порог {p}", time: "⏱ Время: {t}",
+    review: "📋 Разбор ошибок ({n})", newExam: "🔁 Новый экзамен", yours: "Ваш ответ", skipped: "Без ответа",
+    timeUp: "Время вышло", err: "Не получилось. Проверьте интернет и попробуйте ещё раз.", prev: "⬅️", fwd: "➡️",
+    openInTg: "Откройте приложение из бота @jolqauipsizbot", topicTitle: "Выберите тему", acc: "точность {n}%",
+  },
+  kk: {
+    ready: "Емтиханға дайындық", noReady: "20 сұраққа жауап беріңіз", streak: "🔥 {n} күн қатарынан", solved: "📚 {t}-тың {n}",
+    mistakesChip: "❌ {n} қате", examsChip: "🏁 {t}-тың {n} тапсырылды",
+    exam: "🏁 Сынақ емтиханы", examSub: "40 сұрақ · 40 минут · шегі 32", examCont: "▶️ Емтиханды жалғастыру",
+    practice: "Жаттығу", practiceSub: "20 кездейсоқ сұрақ", marathon: "Марафон", marathonSub: "{t} сұрақтың {n}-сі",
+    topics: "Тақырыптар", topicsSub: "{n} тақырып", mist: "Қателер", mistSub: "{n} сұрақ", noMist: "Әзірге қате жоқ 🎉",
+    next: "Келесі", finish: "Аяқтау", right: "✅ Дұрыс!", wrong: "❌ Қате", expl: "💡 Түсіндірме",
+    once: "Тағы бір рет дұрыс жауап беріңіз — сұрақ қателер тізімінен шығады.", done: "Топтама аяқталды",
+    again: "🔁 Қайта өту", home: "🏠 Басты бетке",
+    great: "Керемет! Емтиханға дайынсыз 🎉", good: "Жақсы! Тағы аздап жаттығыңыз 💪", retry: "Қателер сақталды — оларды қайталаңыз 📚",
+    answered: "{t} сұрақтың {n}-іне жауап берілді", finishQ: "Емтиханды аяқтайсыз ба? Жауапсыз: {n} — қате болып саналады.",
+    passed: "🎉 Тапсырылды!", failed: "😔 Тапсырылмады", score: "{t} сұрақтың {n} дұрыс · шегі {p}", time: "⏱ Уақыт: {t}",
+    review: "📋 Қателерді талдау ({n})", newExam: "🔁 Жаңа емтихан", yours: "Сіздің жауабыңыз", skipped: "Жауап берілмеді",
+    timeUp: "Уақыт аяқталды", err: "Болмады. Интернетті тексеріп, қайталап көріңіз.", prev: "⬅️", fwd: "➡️",
+    openInTg: "Қосымшаны @jolqauipsizbot ботынан ашыңыз", topicTitle: "Тақырыпты таңдаңыз", acc: "дәлдік {n}%",
+  },
+};
+let lang = "ru";
+const t = (key, params = {}) => T[lang][key].replace(/\{(\w+)\}/g, (_, k) => (k in params ? params[k] : ""));
+const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const LETTERS = "ABCDEFGH";
+const haptic = (kind) => { try { tg.HapticFeedback.notificationOccurred(kind); } catch (e) {} };
+
+async function call(action, data = {}) {
+  if (DEMO) return demo(action, data);
+  const response = await fetch(API, {
+    method: "POST", headers: { "content-type": "application/json", "x-init-data": tg.initData },
+    body: JSON.stringify({ action, ...data }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || response.status);
+  return body;
+}
+
+function fail() {
+  app.innerHTML = `<div class="msg">${esc(t("err"))}<button class="btn" onclick="showHome()">${esc(t("home"))}</button></div>`;
+}
+
+// Telegram's back button returns to the previous screen; the home screen has none.
+let back = null;
+function setBack(fn) {
+  back = fn;
+  if (!tg) return;
+  if (fn) tg.BackButton.show(); else tg.BackButton.hide();
+}
+if (tg) tg.BackButton.onClick(() => back && back());
+
+function ring(percent, label) {
+  const r = 34, c = 2 * Math.PI * r, p = percent == null ? 0 : percent;
+  const color = p >= 80 ? "var(--ok)" : p >= 60 ? "var(--warn)" : "var(--bad)";
+  return `<svg class="ring" viewBox="0 0 84 84"><circle cx="42" cy="42" r="${r}" fill="none" stroke="var(--bg)" stroke-width="9"/>
+<circle cx="42" cy="42" r="${r}" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round"
+ stroke-dasharray="${c * p / 100} ${c}" transform="rotate(-90 42 42)"/>
+<text x="42" y="50" text-anchor="middle">${esc(label)}</text></svg>`;
+}
+
+function media(src) {
+  if (!src) return "";
+  return /\.mp4(\?|$)/i.test(src)
+    ? `<video class="media" id="media" src="${esc(src)}" autoplay muted loop playsinline></video>`
+    : `<img class="media" id="media" src="${esc(src)}" alt="">`;
+}
+
+function showMedia(src) {
+  const el = $("#media");
+  if (!el || !src) return;
+  el.src = src;
+  if (el.play) el.play().catch(() => {});
+}
+
+function dock(html) {
+  return `<div class="dock">${html}</div>`;
+}
+
+// ---------- home ----------
+
+let homeData = null;
+
+async function showHome() {
+  setBack(null);
+  window.scrollTo(0, 0);
+  try { homeData = await call("home"); } catch (e) { fail(); return; }
+  const h = homeData;
+  lang = h.lang === "kk" ? "kk" : "ru";
+  document.documentElement.lang = lang;
+  const tile = (ic, title, sub, fn) =>
+    `<div class="tile" onclick="${fn}"><div class="ic">${ic}</div><div><b>${esc(title)}</b><span>${esc(sub)}</span></div></div>`;
+  app.innerHTML = `
+<div class="card row">${ring(h.readiness, h.readiness == null ? "—" : h.readiness + "%")}
+ <div class="grow"><b>${esc(t("ready"))}</b><div class="hint">${h.readiness == null ? esc(t("noReady")) : ""}</div>
+ <div class="chips"><span class="chip">${esc(t("streak", { n: h.streak }))}</span><span class="chip">${esc(t("solved", { n: h.seen, t: h.total }))}</span>
+ <span class="chip">${esc(t("examsChip", { n: h.examsPassed, t: h.exams }))}</span></div></div></div>
+<div class="hero" onclick="startExam()"><b>${esc(h.activeExam ? t("examCont") : t("exam"))}</b><span>${esc(t("examSub"))}</span></div>
+<div class="tiles">
+ ${tile("📝", t("practice"), t("practiceSub"), "startSeries('practice')")}
+ ${tile("🏃", t("marathon"), t("marathonSub", { n: h.marathon + 1, t: h.total }), "startSeries('marathon')")}
+ ${tile("📂", t("topics"), t("topicsSub", { n: h.topics.length }), "showTopics()")}
+ ${tile("❌", t("mist"), h.mistakes ? t("mistSub", { n: h.mistakes }) : t("noMist"), h.mistakes ? "startSeries('mistakes')" : "")}
+</div>`;
+}
+
+function showTopics() {
+  setBack(showHome);
+  window.scrollTo(0, 0);
+  app.innerHTML = `<h1>${esc(t("topicTitle"))}</h1>` + homeData.topics.map((x) => `
+<div class="item" onclick="startSeries('topic','${esc(x.id)}')"><div class="row"><div class="grow"><b>${x.n}. ${esc(x.title)}</b>
+<div class="hint">${x.count}${x.acc == null ? "" : " · " + esc(t("acc", { n: x.acc }))}</div></div></div>
+${x.acc == null ? "" : `<div class="bar"><i style="width:${x.acc}%"></i></div>`}</div>`).join("");
+}
+
+// ---------- practice: training, marathon, a topic, mistakes ----------
+
+let run = null;
+
+async function startSeries(mode, topic) {
+  app.innerHTML = `<div class="msg">…</div>`;
+  let data;
+  try { data = await call("series", { mode, topic }); } catch (e) { fail(); return; }
+  if (!data.questions.length) { showHome(); return; }
+  run = { ...data, topic, index: 0, right: 0, answered: null };
+  setBack(showHome);
+  showQuestion();
+}
+
+function counterText() {
+  return run.mode === "marathon" ? `${run.start + run.index + 1} / ${run.total}` : `${run.index + 1} / ${run.questions.length}`;
+}
+
+function showQuestion() {
+  const q = run.questions[run.index];
+  run.answered = null;
+  window.scrollTo(0, 0);
+  const progress = 100 * run.index / run.questions.length;
+  app.innerHTML = `
+<div class="top"><span>${esc(counterText())}</span><div class="bar"><i style="width:${progress}%"></i></div><span>✅ ${run.right}</span></div>
+${media(q.img)}<p class="question">${esc(q.q)}</p>
+<div id="opts">${q.o.map((o, i) => `<button class="opt" onclick="choose(${i})"><span class="l">${LETTERS[i]}</span><span>${esc(o)}</span></button>`).join("")}</div>
+<div id="after"></div>`;
+}
+
+async function choose(i) {
+  if (run.answered !== null) return;
+  const q = run.questions[run.index];
+  run.answered = i;
+  const correct = i === q.c;
+  if (correct) run.right++;
+  haptic(correct ? "success" : "error");
+  document.querySelectorAll("#opts .opt").forEach((el, k) => {
+    if (k === q.c) el.classList.add("ok"); else if (k === i) el.classList.add("bad");
+  });
+  showMedia(q.expImg);
+  const last = run.index + 1 >= run.questions.length;
+  $("#after").innerHTML = `<div class="verdict ${correct ? "ok" : "bad"}">${esc(t(correct ? "right" : "wrong"))}</div>
+<div class="expl"><b>${esc(t("expl"))}</b><div>${esc(q.exp)}</div><small>📖 ${esc(q.rule)}</small></div><div id="note"></div>
+${dock(`<button class="btn" onclick="${last ? "showSummary()" : "nextQuestion()"}">${esc(t(last ? "finish" : "next"))}</button>`)}`;
+  try {
+    const result = await call("answer", { id: q.id, selected: i, mode: run.mode });
+    if (result.onceMore) $("#note").innerHTML = `<div class="note">${esc(t("once"))}</div>`;
+  } catch (e) { /* the answer is shown anyway; the next tap tries the server again */ }
+}
+
+function nextQuestion() {
+  run.index++;
+  showQuestion();
+}
+
+function showSummary() {
+  const percent = Math.round(100 * run.right / run.questions.length);
+  const praise = percent >= 90 ? "great" : percent >= 70 ? "good" : "retry";
+  window.scrollTo(0, 0);
+  app.innerHTML = `<div class="card center"><h1>${esc(t("done"))}</h1>
+<div style="display:flex;justify-content:center;margin:12px 0">${ring(percent, percent + "%")}</div>
+<b>${run.right} / ${run.questions.length}</b><p>${esc(t(praise))}</p></div>
+<button class="btn" onclick="startSeries('${run.mode}', ${run.topic ? `'${esc(run.topic)}'` : "undefined"})">${esc(t("again"))}</button>
+<button class="btn alt" onclick="showHome()">${esc(t("home"))}</button>`;
+}
+
+// ---------- exam ----------
+
+let exam = null;
+let tick = null;
+
+async function startExam() {
+  app.innerHTML = `<div class="msg">…</div>`;
+  try { exam = await call("exam"); } catch (e) { fail(); return; }
+  exam.deadline = Date.now() + exam.left * 1000;
+  exam.index = exam.questions.findIndex((q) => !(q.id in exam.answers));
+  if (exam.index < 0) exam.index = 0;
+  setBack(showHome);
+  clearInterval(tick);
+  tick = setInterval(updateTimer, 1000);
+  showExamQuestion();
+}
+
+function examAnswered() {
+  return exam.questions.filter((q) => q.id in exam.answers).length;
+}
+
+function updateTimer() {
+  const el = $("#timer");
+  const left = Math.max(0, Math.round((exam.deadline - Date.now()) / 1000));
+  if (el) {
+    el.textContent = `⏱ ${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
+    el.classList.toggle("low", left < 300);
+  }
+  if (left <= 0) finishExam(true);
+}
+
+function showExamQuestion() {
+  const q = exam.questions[exam.index];
+  const chosen = exam.answers[q.id];
+  window.scrollTo(0, 0);
+  app.innerHTML = `
+<div class="top"><span class="timer" id="timer"></span><span class="grow"></span><span>${esc(t("answered", { n: examAnswered(), t: exam.questions.length }))}</span></div>
+<div class="dots">${exam.questions.map((x, k) =>
+    `<div class="dot${x.id in exam.answers ? " a" : ""}${k === exam.index ? " cur" : ""}" onclick="goExam(${k})">${k + 1}</div>`).join("")}</div>
+${media(q.img)}<p class="question">${exam.index + 1}. ${esc(q.q)}</p>
+<div>${q.o.map((o, i) => `<button class="opt${chosen === i ? " sel" : ""}" onclick="examChoose(${i})"><span class="l">${LETTERS[i]}</span><span>${esc(o)}</span></button>`).join("")}</div>
+<div class="nav"><button class="btn alt" onclick="goExam(${exam.index - 1})" ${exam.index ? "" : "disabled"}>${t("prev")}</button>
+<button class="btn alt" onclick="goExam(${exam.index + 1})" ${exam.index < exam.questions.length - 1 ? "" : "disabled"}>${t("fwd")}</button></div>
+${dock(`<button class="btn" onclick="askFinish()">${esc(t("finish"))} · ${examAnswered()}/${exam.questions.length}</button>`)}`;
+  updateTimer();
+}
+
+function goExam(k) {
+  if (k < 0 || k >= exam.questions.length) return;
+  exam.index = k;
+  showExamQuestion();
+}
+
+async function examChoose(i) {
+  const q = exam.questions[exam.index];
+  exam.answers[q.id] = i;
+  try { tg.HapticFeedback.selectionChanged(); } catch (e) {}
+  call("exam_answer", { attempt: exam.attempt, id: q.id, selected: i }).catch(() => {});
+  // On to the next question still without an answer; the dots lead back to change any answer.
+  const n = exam.questions.length;
+  for (let s = 1; s <= n; s++) {
+    const k = (exam.index + s) % n;
+    if (!(exam.questions[k].id in exam.answers)) { setTimeout(() => goExam(k), 200); return; }
+  }
+  showExamQuestion();
+}
+
+function askFinish() {
+  const left = exam.questions.length - examAnswered();
+  const text = t("finishQ", { n: left });
+  if (tg && tg.showConfirm) tg.showConfirm(text, (ok) => ok && finishExam(false));
+  else if (confirm(text)) finishExam(false);
+}
+
+async function finishExam(timedOut) {
+  clearInterval(tick);
+  if (exam.finished) return;
+  exam.finished = true;
+  app.innerHTML = `<div class="msg">…</div>`;
+  let result;
+  try { result = await call("exam_finish", { attempt: exam.attempt }); } catch (e) { fail(); return; }
+  haptic(result.passed ? "success" : "warning");
+  exam.result = { ...result, timedOut };
+  showResult();
+}
+
+function showReview() {
+  setBack(showResult);
+  window.scrollTo(0, 0);
+  const items = exam.questions.map((q, k) => ({ q, k })).filter(({ q }) => exam.answers[q.id] !== q.c);
+  app.innerHTML = items.map(({ q, k }) => {
+    const chosen = exam.answers[q.id];
+    return `<div class="card">${media(q.expImg || q.img)}<p class="question">${k + 1}. ${esc(q.q)}</p>
+${q.o.map((o, i) => `<div class="opt${i === q.c ? " ok" : i === chosen ? " bad" : ""}"><span class="l">${LETTERS[i]}</span><span>${esc(o)}</span></div>`).join("")}
+${chosen == null ? `<div class="hint">${esc(t("skipped"))}</div>` : ""}
+<div class="expl"><b>${esc(t("expl"))}</b><div>${esc(q.exp)}</div><small>📖 ${esc(q.rule)}</small></div></div>`;
+  }).join("") + `<button class="btn" onclick="showHome()">${esc(t("home"))}</button>`;
+}
+
+/** The exam result: the score ring, passed or not, the time, and the review of the mistakes. */
+function showResult() {
+  const r = exam.result;
+  const mm = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  const mistakes = exam.questions.filter((q) => exam.answers[q.id] !== q.c).length;
+  setBack(showHome);
+  window.scrollTo(0, 0);
+  app.innerHTML = `<div class="card center">${r.timedOut ? `<div class="hint">${esc(t("timeUp"))}</div>` : ""}
+<h1>${esc(t(r.passed ? "passed" : "failed"))}</h1>
+<div style="display:flex;justify-content:center;margin:12px 0">${ring(Math.round(100 * r.score / r.total), `${r.score}/${r.total}`)}</div>
+<div>${esc(t("score", { n: r.score, t: r.total, p: r.pass }))}</div><div class="hint">${esc(t("time", { t: mm(r.spent) }))}</div></div>
+${mistakes ? `<button class="btn" onclick="showReview()">${esc(t("review", { n: mistakes }))}</button>` : ""}
+<button class="btn alt" onclick="startExam()">${esc(t("newExam"))}</button>
+<button class="btn alt" onclick="showHome()">${esc(t("home"))}</button>`;
+}
+
+// ---------- start ----------
+
+if (tg) {
+  tg.ready();
+  tg.expand();
+}
+if (tg && tg.initData || DEMO) showHome();
+else app.innerHTML = `<div class="msg">${esc(t("openInTg"))}</div>`;
+
+// ---------- demo data, only outside Telegram with ?demo (to look at the screens in a browser) ----------
+
+function demo(action, data) {
+  const v = "https://xmbfhgayewkraonookud.supabase.co/storage/v1/object/public/question-images/assets/pddtest/20251019_0901_iondtcs6gz_video.mp4";
+  const qs = [
+    { id: "d1", q: "Кому вы должны уступить дорогу при повороте налево?", o: ["Только легковому автомобилю.", "Только автобусу.", "Обоим транспортным средствам, движущимся со встречного направления прямо."], c: 2,
+      exp: "При повороте налево водитель обязан уступить дорогу транспортным средствам, движущимся со встречного направления прямо или направо.", rule: "Раздел 13, пункт 13.4 ПДД РК", img: v, expImg: null },
+    { id: "d2", q: "Разрешено ли вам остановиться в этом месте?", o: ["Разрешено.", "Запрещено."], c: 1, exp: "Остановка запрещена ближе 5 м от пешеходного перехода.", rule: "Раздел 12, пункт 12.4 ПДД РК", img: v, expImg: null },
+  ];
+  const wait = (x) => new Promise((r) => setTimeout(() => r(x), 150));
+  if (action === "home") return wait({ lang: "ru", total: 1107, readiness: 72, seen: 340, streak: 4, mistakes: 12, exams: 3, examsPassed: 1, marathon: 341, activeExam: false,
+    topics: [{ id: "t03", n: 3, title: "Дорожные знаки", count: 171, acc: 64 }, { id: "t11", n: 11, title: "Проезд перекрёстков", count: 145, acc: null }] });
+  if (action === "series") return wait({ mode: data.mode, start: 341, total: 1107, questions: qs });
+  if (action === "answer") return wait({ correct: true, onceMore: false });
+  if (action === "exam") return wait({ attempt: 1, minutes: 40, pass: 32, left: 2400, answers: {}, questions: Array.from({ length: 40 }, (_, k) => ({ ...qs[k % 2], id: "e" + k })) });
+  if (action === "exam_answer") return wait({ ok: true });
+  if (action === "exam_finish") return wait({ score: 33, total: 40, pass: 32, passed: true, spent: 1520 });
+}
+</script>
+</body>
+</html>
